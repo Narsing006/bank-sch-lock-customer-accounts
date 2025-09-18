@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:snowflake="http://www.mulesoft.org/schema/mule/snowflake"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/snowflake http://www.mulesoft.org/schema/mule/snowflake/current/mule-snowflake.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<snowflake:snowflake-config name="Snowflake_Config" doc:name="Snowflake Config" doc:id="2786bb4c-a955-42d6-bc4a-60bc3007c577" >
+		<snowflake:snowflake-connection accountName="PTWXDSX-CF63578" warehouse="COMPUTE_WH" database="HOSPITALLOCATORDB" schema="PUBLIC" user="SINGSING" password="Narsing@12345678" role="ACCOUNTADMIN" />
+	</snowflake:snowflake-config>
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="3c8268b8-11bc-49a8-bffa-3c908cd9500a" >
+		<email:smtp-connection host="smtp.gmail.com" port="587" user="narsingbeesetti06@gmail.com" password="kejo yanz wjpo vnum" >
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<flow name="bank-sch-lock-customer-accountsFlow" doc:id="8d8eda52-dd7b-4cae-9625-6b48146fbd4c" >
+		<scheduler doc:name="Scheduler" doc:id="ed4c8d55-c40f-45ae-b072-a2ff786f77cd" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="1" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="secdhuler started for locked accounts emails" doc:id="dfae1b3d-787e-4dc0-91d7-8ab491ed7e61" message="------------------secdhuler started for locked accounts emails-------------------"/>
+		<snowflake:select doc:name="retrieve locked accounts" doc:id="077d0d1f-4568-47ad-ac22-00ba58a34d75" config-ref="Snowflake_Config">
+			<snowflake:sql ><![CDATA[select * from bank_transactions where accountStatus = 'Locked']]></snowflake:sql>
+		</snowflake:select>
+		<parallel-foreach doc:name="Parallel For Each" doc:id="7dfc9acd-166d-4961-b757-a8f4083895c1" >
+			<logger level="INFO" doc:name="before send an email" doc:id="4e3a455f-b38d-4cf7-a14d-a6e8c3551d05" message="---------------------------------inside for each before send an email----------------------------"/>
+			<set-variable value='#[%dw 2.0&#10;output application/json&#10;---&#10;"Your Account is locked for temporarily with account Number -" ++ payload.CUSTACCNUM as String ++ " from " ++ payload.BANKNAME ++" .If you want to unlock please use our website (or) contact customer care-040-123456"]' doc:name="emailBody" doc:id="3bdf509b-e2af-4a14-84dd-1b9bed59f818" variableName="emailBody" />
+			<set-variable value="#[payload.MAILLD]" doc:name="email" doc:id="abaa33fd-0228-42ce-ba24-90cd305eae08" variableName="email"/>
+			<set-variable value="#[payload.BANKNAME]" doc:name="bankName" doc:id="df916947-111c-4070-b74b-32f6edbc2f69" variableName="bankName"/>
+			<parse-template doc:name="Parse Template" doc:id="00cccaba-1bdd-4b29-8c43-bc39d9d043cb" location="html\email.template"/>
+			<email:send doc:name="Send" doc:id="ec1d9852-6fdc-47c7-89a6-45f7d93c51f7" config-ref="Email_SMTP" fromAddress="narsingbeesetti06@gmail.com" subject="Your account status - Locked">
+				<email:to-addresses >
+					<email:to-address value="#[vars.email]" />
+				</email:to-addresses>
+				<email:body contentType="text/html">
+				</email:body>
+			</email:send>
+			<logger level="INFO" doc:name="after success email" doc:id="76d84140-cb03-43c6-8f0e-aa64ae77c907" message="email sent successfully for #[vars.email]"/>
+		</parallel-foreach>
+		<logger level="INFO" doc:name="End flow" doc:id="5202ee94-26a7-4b79-86bc-cf76476ad856" message="------------------payload--------------#[payload]"/>
+	</flow>
+</mule>
